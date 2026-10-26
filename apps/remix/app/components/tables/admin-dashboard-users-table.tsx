@@ -10,8 +10,8 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import type { Role, Subscription } from '@prisma/client';
 import { Edit, Loader } from 'lucide-react';
-import { useEffect, useMemo, useState, useTransition } from 'react';
-import { Link } from 'react-router';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { Link, useSearchParams } from 'react-router';
 
 type UserData = {
   id: number;
@@ -34,10 +34,12 @@ type AdminDashboardUsersTableProps = {
 export const AdminDashboardUsersTable = ({ users, totalPages, perPage, page }: AdminDashboardUsersTableProps) => {
   const { _ } = useLingui();
 
+  const [searchParams] = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const updateSearchParams = useUpdateSearchParams();
-  const [searchString, setSearchString] = useState('');
+  const [searchString, setSearchString] = useState(searchParams.get('search') || '');
   const debouncedSearchString = useDebouncedValue(searchString, 1000);
+  const isFirstRender = useRef(true);
 
   const columns = useMemo(() => {
     return [
@@ -83,6 +85,11 @@ export const AdminDashboardUsersTable = ({ users, totalPages, perPage, page }: A
   }, []);
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
     startTransition(() => {
       updateSearchParams({
         search: debouncedSearchString,
