@@ -166,6 +166,21 @@ export const DATE_FORMATS = [
   value: (typeof VALID_DATE_FORMAT_VALUES)[number];
 }[];
 
+/**
+ * Maps format strings containing non-Luxon tokens to valid Luxon format tokens.
+ * Specifically converts ISO-8601 offset token 'XXX' to Luxon's 'ZZ'.
+ */
+export const toLuxonDateFormat = (dateFormat: string): string => {
+  return dateFormat.replace(/XXX$/, 'ZZ');
+};
+
+/**
+ * Checks if the given date format is date-only (contains no time tokens).
+ */
+export const isDateOnlyFormat = (dateFormat: string): boolean => {
+  return !/[hHmsa]/.test(dateFormat);
+};
+
 export const convertToLocalSystemFormat = (
   customText: string,
   dateFormat: string | null = DEFAULT_DOCUMENT_DATE_FORMAT,
@@ -173,16 +188,31 @@ export const convertToLocalSystemFormat = (
 ): string => {
   const coalescedDateFormat = dateFormat ?? DEFAULT_DOCUMENT_DATE_FORMAT;
   const coalescedTimeZone = timeZone ?? DEFAULT_DOCUMENT_TIME_ZONE;
+  const luxonFormat = toLuxonDateFormat(coalescedDateFormat);
 
-  const parsedDate = DateTime.fromFormat(customText, coalescedDateFormat, {
+  let parsedDate = DateTime.fromFormat(customText, luxonFormat, {
     zone: coalescedTimeZone,
   });
+
+  if (!parsedDate.isValid && luxonFormat !== coalescedDateFormat) {
+    parsedDate = DateTime.fromFormat(customText, coalescedDateFormat, {
+      zone: coalescedTimeZone,
+    });
+  }
+
+  if (!parsedDate.isValid && (coalescedDateFormat.includes('XXX') || coalescedDateFormat.includes('ZZ'))) {
+    parsedDate = DateTime.fromISO(customText, { zone: coalescedTimeZone });
+  }
 
   if (!parsedDate.isValid) {
     return 'Invalid date';
   }
 
-  const formattedDate = parsedDate.toLocal().toFormat(coalescedDateFormat);
+  if (isDateOnlyFormat(coalescedDateFormat)) {
+    return parsedDate.toFormat(luxonFormat);
+  }
+
+  const formattedDate = parsedDate.toLocal().toFormat(luxonFormat);
 
   return formattedDate;
 };
