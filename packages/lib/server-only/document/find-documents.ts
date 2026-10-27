@@ -318,13 +318,15 @@ export const findDocuments = async ({
           ),
       )
       .with(ExtendedDocumentStatus.EXPIRED, () =>
-        qb.where((eb) =>
-          eb.and([
-            personalDeletedFilter(eb),
-            hasExpiredRecipient(eb),
-            eb.or([eb('Envelope.userId', '=', user.id), recipientExists(eb, user.email)]),
-          ]),
-        ),
+        qb
+          .where('Envelope.status', '=', sql.lit(DocumentStatus.PENDING))
+          .where((eb) =>
+            eb.and([
+              personalDeletedFilter(eb),
+              hasExpiredRecipient(eb),
+              eb.or([eb('Envelope.userId', '=', user.id), recipientExists(eb, user.email)]),
+            ]),
+          ),
       )
       .exhaustive();
   };
@@ -477,7 +479,7 @@ export const findDocuments = async ({
         }),
       )
       .with(ExtendedDocumentStatus.EXPIRED, () =>
-        qb.where((eb) => {
+        qb.where('Envelope.status', '=', sql.lit(DocumentStatus.PENDING)).where((eb) => {
           const accessBranches = [eb('Envelope.teamId', '=', teamData.id)];
 
           if (teamEmail) {
